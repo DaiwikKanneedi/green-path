@@ -106,14 +106,96 @@ export function getDefaultActivity(): DailyActivity {
   };
 }
 
-// Generate mock weekly data
-export function getMockWeeklyData(): { day: string; carbon: number; water: number; energy: number; score: number }[] {
-  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  return days.map((day) => ({
-    day,
-    carbon: Math.round((3 + Math.random() * 8) * 10) / 10,
-    water: Math.round(80 + Math.random() * 120),
-    energy: Math.round((4 + Math.random() * 8) * 10) / 10,
-    score: Math.round(55 + Math.random() * 40),
-  }));
+// Build weekly data from real logged activities
+export function getRealWeeklyData(activities: DailyActivity[]): { day: string; carbon: number; water: number; energy: number; score: number }[] {
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const today = new Date();
+  const result: { day: string; carbon: number; water: number; energy: number; score: number }[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split("T")[0];
+    const act = activities.find((a) => a.date === dateStr);
+    if (act) {
+      const impact = calculateImpact(act);
+      result.push({ day: days[d.getDay()], carbon: impact.carbon, water: impact.water, energy: impact.energy, score: impact.ecoScore });
+    } else {
+      result.push({ day: days[d.getDay()], carbon: 0, water: 0, energy: 0, score: 0 });
+    }
+  }
+  return result;
+}
+
+// Build stats data from real activities for given period
+export function getRealStatsData(activities: DailyActivity[], period: string): { name: string; carbon: number; water: number; energy: number }[] {
+  if (activities.length === 0) return [];
+
+  const today = new Date();
+
+  if (period === "daily") {
+    // Show hourly breakdown - but we only have daily totals, so show today's single entry
+    const todayStr = today.toISOString().split("T")[0];
+    const act = activities.find((a) => a.date === todayStr);
+    if (!act) return [];
+    const impact = calculateImpact(act);
+    return [{ name: "Today", carbon: impact.carbon, water: impact.water, energy: impact.energy }];
+  }
+
+  if (period === "weekly") {
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const result: { name: string; carbon: number; water: number; energy: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split("T")[0];
+      const act = activities.find((a) => a.date === dateStr);
+      if (act) {
+        const impact = calculateImpact(act);
+        result.push({ name: days[d.getDay()], carbon: impact.carbon, water: impact.water, energy: impact.energy });
+      } else {
+        result.push({ name: days[d.getDay()], carbon: 0, water: 0, energy: 0 });
+      }
+    }
+    return result;
+  }
+
+  if (period === "monthly") {
+    const result: { name: string; carbon: number; water: number; energy: number }[] = [];
+    for (let w = 3; w >= 0; w--) {
+      let totalCarbon = 0, totalWater = 0, totalEnergy = 0, count = 0;
+      for (let d = 0; d < 7; d++) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - w * 7 - d);
+        const dateStr = date.toISOString().split("T")[0];
+        const act = activities.find((a) => a.date === dateStr);
+        if (act) {
+          const impact = calculateImpact(act);
+          totalCarbon += impact.carbon;
+          totalWater += impact.water;
+          totalEnergy += impact.energy;
+          count++;
+        }
+      }
+      result.push({ name: `W${4 - w}`, carbon: +(totalCarbon / Math.max(1, count)).toFixed(1), water: Math.round(totalWater / Math.max(1, count)), energy: +(totalEnergy / Math.max(1, count)).toFixed(1) });
+    }
+    return result;
+  }
+
+  // yearly - last 12 months
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const result: { name: string; carbon: number; water: number; energy: number }[] = [];
+  for (let m = 11; m >= 0; m--) {
+    const d = new Date(today.getFullYear(), today.getMonth() - m, 1);
+    const monthActivities = activities.filter((a) => a.date.startsWith(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`));
+    if (monthActivities.length > 0) {
+      const avg = monthActivities.reduce((acc, act) => {
+        const impact = calculateImpact(act);
+        return { carbon: acc.carbon + impact.carbon, water: acc.water + impact.water, energy: acc.energy + impact.energy };
+      }, { carbon: 0, water: 0, energy: 0 });
+      result.push({ name: months[d.getMonth()], carbon: +(avg.carbon / monthActivities.length).toFixed(1), water: Math.round(avg.water / monthActivities.length), energy: +(avg.energy / monthActivities.length).toFixed(1) });
+    } else {
+      result.push({ name: months[d.getMonth()], carbon: 0, water: 0, energy: 0 });
+    }
+  }
+  return result;
 }
