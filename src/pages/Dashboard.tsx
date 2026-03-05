@@ -8,8 +8,8 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import PageTransition from "@/components/PageTransition";
 import AnimatedCounter from "@/components/AnimatedCounter";
-import { DailyActivity, calculateImpact, getSuggestions, ECO_TIPS, getMockWeeklyData } from "@/lib/eco-data";
-import { getTodayActivity, saveActivity, getUser } from "@/lib/storage";
+import { DailyActivity, calculateImpact, getSuggestions, ECO_TIPS, getRealWeeklyData } from "@/lib/eco-data";
+import { getTodayActivity, saveActivity, getUser, getAllActivities } from "@/lib/storage";
 import { useNavigate } from "react-router-dom";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
@@ -19,7 +19,8 @@ export default function Dashboard() {
   const [showModal, setShowModal] = useState(true);
   const [activity, setActivity] = useState<DailyActivity>(getTodayActivity());
   const [tip] = useState(ECO_TIPS[Math.floor(Math.random() * ECO_TIPS.length)]);
-  const weeklyData = getMockWeeklyData();
+  const allActivities = getAllActivities();
+  const weeklyData = getRealWeeklyData(allActivities);
 
   useEffect(() => {
     if (!user) navigate("/onboarding");

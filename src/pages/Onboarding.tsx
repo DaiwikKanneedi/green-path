@@ -20,9 +20,23 @@ export default function Onboarding() {
   const [form, setForm] = useState({ name: "", email: "", password: "", country: "", householdSize: 1 });
   const [error, setError] = useState("");
 
+  const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
   const handleSubmit = () => {
-    if (!form.name || !form.email || !form.password) {
+    if (!form.name.trim() || !form.email.trim() || !form.password) {
       setError("Please fill in all required fields.");
+      return;
+    }
+    if (!validateEmail(form.email.trim())) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+    if (form.password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+    if (form.name.trim().length < 2) {
+      setError("Name must be at least 2 characters.");
       return;
     }
     saveUser({
